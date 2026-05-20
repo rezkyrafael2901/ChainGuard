@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+body {
+  margin: 0;
+  background: radial-gradient(circle at top left, rgba(52, 211, 153, 0.12), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 35%),
+    #050816;
+  color: #e5e7eb;
+}
+* { box-sizing: border-box; }
