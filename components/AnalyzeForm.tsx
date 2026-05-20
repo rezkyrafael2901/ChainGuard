@@ -3,6 +3,15 @@
 import { useState } from "react";
 import type { AnalyzeResponse, Chain } from "@/lib/types";
 
+const sampleEth = `contract RiskyToken {
+  address public owner;
+  mapping(address => bool) public blacklist;
+  modifier onlyOwner(){ require(msg.sender == owner); _; }
+  function mint(address to, uint amount) public onlyOwner {}
+  function setTax(uint value) external onlyOwner {}
+  function upgradeTo(address impl) external onlyOwner {}
+}`;
+
 export function AnalyzeForm({ onResult }: { onResult: (result: AnalyzeResponse) => void }) {
   const [chain, setChain] = useState<Chain>("ethereum");
   const [address, setAddress] = useState("");
@@ -10,6 +19,17 @@ export function AnalyzeForm({ onResult }: { onResult: (result: AnalyzeResponse) 
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  function loadSample() {
+    if (chain === "ethereum") {
+      setAddress("0x0000000000000000000000000000000000000000");
+      setSourceCode(sampleEth);
+      setNotes("Demo token with owner controls, minting, blacklist, tax changes, and upgrade behavior.");
+    } else {
+      setAddress("So11111111111111111111111111111111111111112");
+      setNotes("Demo Solana token analysis: check mint authority, freeze authority, liquidity, metadata mutability, and holder concentration.");
+    }
+  }
 
   async function submit() {
     setLoading(true);
@@ -23,6 +43,7 @@ export function AnalyzeForm({ onResult }: { onResult: (result: AnalyzeResponse) 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Analysis failed");
       onResult(json);
+      setTimeout(() => document.getElementById("report")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
@@ -31,33 +52,41 @@ export function AnalyzeForm({ onResult }: { onResult: (result: AnalyzeResponse) 
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur">
-      <div className="grid gap-4 md:grid-cols-2">
-        <button onClick={() => setChain("ethereum")} className={`rounded-2xl border p-4 text-left ${chain === "ethereum" ? "border-emerald-400 bg-emerald-400/10" : "border-white/10 bg-white/5"}`}>
-          <div className="font-bold">Ethereum</div>
-          <div className="text-sm text-slate-400">Solidity contracts, ERC-20 tokens, proxy and owner risks.</div>
+    <div className="rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-2xl shadow-slate-200/60 backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.055] dark:shadow-black/30">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-600 dark:text-emerald-300">Live analyzer</p>
+          <h2 className="mt-1 text-2xl font-black text-slate-950 dark:text-white">Run a pre-audit scan</h2>
+        </div>
+        <button onClick={loadSample} className="rounded-full border border-emerald-500/40 px-4 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-500/10 dark:text-emerald-200">Load sample</button>
+      </div>
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <button onClick={() => setChain("ethereum")} className={`rounded-2xl border p-4 text-left transition ${chain === "ethereum" ? "border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20" : "border-slate-200 bg-slate-50 hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"}`}>
+          <div className="flex items-center gap-2 font-black text-slate-950 dark:text-white"><span className="text-xl">◆</span> Ethereum</div>
+          <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">Solidity contracts, ERC-20 tokens, proxy and owner risks.</div>
         </button>
-        <button onClick={() => setChain("solana")} className={`rounded-2xl border p-4 text-left ${chain === "solana" ? "border-emerald-400 bg-emerald-400/10" : "border-white/10 bg-white/5"}`}>
-          <div className="font-bold">Solana</div>
-          <div className="text-sm text-slate-400">Token mint, authority, liquidity, and wallet-risk checklist.</div>
+        <button onClick={() => setChain("solana")} className={`rounded-2xl border p-4 text-left transition ${chain === "solana" ? "border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20" : "border-slate-200 bg-slate-50 hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"}`}>
+          <div className="flex items-center gap-2 font-black text-slate-950 dark:text-white"><span className="text-xl">◎</span> Solana</div>
+          <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">Token mint, authority, liquidity, and wallet-risk checklist.</div>
         </button>
       </div>
 
-      <label className="mt-6 block text-sm font-semibold text-slate-300">Address</label>
-      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={chain === "ethereum" ? "0x..." : "Solana token / wallet / program address"} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-mono outline-none focus:border-emerald-400" />
+      <label className="mt-6 block text-sm font-bold text-slate-700 dark:text-slate-300">Address</label>
+      <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={chain === "ethereum" ? "0x..." : "Solana token / wallet / program address"} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-white/10 dark:bg-black/30 dark:text-white" />
 
       {chain === "ethereum" && (
         <>
-          <label className="mt-4 block text-sm font-semibold text-slate-300">Optional Solidity source code</label>
-          <textarea value={sourceCode} onChange={(e) => setSourceCode(e.target.value)} rows={7} placeholder="Paste verified Solidity source code to improve analysis..." className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-sm outline-none focus:border-emerald-400" />
+          <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-300">Optional Solidity source code</label>
+          <textarea value={sourceCode} onChange={(e) => setSourceCode(e.target.value)} rows={7} placeholder="Paste verified Solidity source code to improve analysis..." className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-white/10 dark:bg-black/30 dark:text-white" />
         </>
       )}
 
-      <label className="mt-4 block text-sm font-semibold text-slate-300">Optional notes</label>
-      <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Add context: token name, suspicious behavior, liquidity pool, deployer info..." className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-emerald-400" />
+      <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-300">Optional investigation notes</label>
+      <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Add context: token name, suspicious behavior, liquidity pool, deployer info..." className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-white/10 dark:bg-black/30 dark:text-white" />
 
-      {error && <div className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-red-200">{error}</div>}
-      <button onClick={submit} disabled={loading || !address.trim()} className="mt-6 w-full rounded-2xl bg-emerald-400 px-5 py-4 font-bold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50">
+      {error && <div className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-red-700 dark:text-red-200">{error}</div>}
+      <button onClick={submit} disabled={loading || !address.trim()} className="mt-6 w-full rounded-2xl bg-slate-950 px-5 py-4 font-black text-white shadow-glow transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-400 dark:text-slate-950 dark:hover:bg-emerald-300">
         {loading ? "Agents are analyzing risk signals..." : "Run AI Risk Analysis"}
       </button>
     </div>
