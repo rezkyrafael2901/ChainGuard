@@ -41,8 +41,8 @@ export function RiskReport({ report }: { report: AnalyzeResponse }) {
           <div className="text-sm text-slate-500">Signals collected</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20">
-          <div className="text-2xl font-black text-slate-950 dark:text-white">MVP</div>
-          <div className="text-sm text-slate-500">Pre-audit mode</div>
+          <div className="text-2xl font-black text-slate-950 dark:text-white">{report.socialReport.score}/100</div>
+          <div className="text-sm text-slate-500">Social: {report.socialReport.label}</div>
         </div>
       </div>
 

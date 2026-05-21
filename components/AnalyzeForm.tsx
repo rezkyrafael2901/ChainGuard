@@ -22,6 +22,7 @@ export function AnalyzeForm({ onResult, presetNotes }: { onResult: (result: Anal
   const [address, setAddress] = useState("");
   const [sourceCode, setSourceCode] = useState("");
   const [notes, setNotes] = useState("");
+  const [socialLinks, setSocialLinks] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -52,7 +53,7 @@ export function AnalyzeForm({ onResult, presetNotes }: { onResult: (result: Anal
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chain, address, sourceCode, notes, scanMode }),
+        body: JSON.stringify({ chain, address, sourceCode, notes, socialLinks, scanMode }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Analysis failed");
@@ -99,6 +100,10 @@ export function AnalyzeForm({ onResult, presetNotes }: { onResult: (result: Anal
           <textarea value={sourceCode} onChange={(e) => setSourceCode(e.target.value)} rows={7} placeholder={`Paste verified source code from ${chainInfo[chain].explorer}...`} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 font-mono text-sm text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-white/10 dark:bg-black/30 dark:text-white" />
         </>
       )}
+
+      <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-300">Social media / deployer supporter links</label>
+      <textarea value={socialLinks} onChange={(e) => setSocialLinks(e.target.value)} rows={3} placeholder="Paste official website, X/Twitter, Telegram, Discord, GitHub, audit/KYC links, deployer/supporter handles..." className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-white/10 dark:bg-black/30 dark:text-white" />
+      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">ChainGuard will rate social trust as Safe / Authorized / Watchlist / Risk / Scam based on provided links and warning signals.</p>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Investigation notes / manual prompt</label>

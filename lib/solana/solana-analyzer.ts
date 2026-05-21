@@ -4,6 +4,7 @@ import { clampScore, levelFromScore, severityWeight } from "../risk";
 import { buildMarkdownReport } from "../report";
 import { solanaBaselineFindings } from "./solana-rules";
 import { getChainName } from "../chains";
+import { analyzeSocialPresence } from "../social";
 
 function isSolanaAddress(address: string) {
   try {
@@ -69,7 +70,8 @@ export async function analyzeSolana(input: AnalyzeRequest): Promise<AnalyzeRespo
     { title: "Holder Behavior", items: ["Top holder concentration", "Bundled buys", "Wallet clustering", "Abnormal transfers"] },
   ];
   const executiveSummary = `${getChainName(input.chain)} scan completed in ${input.scanMode ?? "standard"} mode. ChainGuard AI generated ${findings.length} investigation finding(s) focused on token authorities, liquidity, metadata, holder concentration, and launch mechanics.`;
-  const summary = `${getChainName(input.chain)} analysis completed in MVP checklist mode with ${findings.length} finding(s). The current risk score is ${score}/100 (${riskLevel}).`;
+  const socialReport = analyzeSocialPresence(input.socialLinks, input.notes);
+  const summary = `${getChainName(input.chain)} analysis completed in MVP checklist mode with ${findings.length} finding(s). The current risk score is ${score}/100 (${riskLevel}). Social media trust rating: ${socialReport.score}/100 (${socialReport.label}).`;
   const response: AnalyzeResponse = {
     chain: input.chain,
     chainName: getChainName(input.chain),
@@ -83,6 +85,7 @@ export async function analyzeSolana(input: AnalyzeRequest): Promise<AnalyzeRespo
     findings,
     recommendedChecks,
     riskSections,
+    socialReport,
     signals,
     markdownReport: "",
   };
