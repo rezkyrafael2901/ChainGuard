@@ -1,14 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AnalyzeResponse } from "@/lib/types";
 import { RiskBadge } from "./RiskBadge";
 
 export function RiskReport({ report }: { report: AnalyzeResponse }) {
-  const [tab, setTab] = useState<"overview" | "social" | "technical" | "checklist">("overview");
+  const [tab, setTab] = useState<"overview" | "social" | "market" | "technical" | "checklist">("overview");
+  const [watchlistCount, setWatchlistCount] = useState(0);
+
+  useEffect(() => {
+    const items = JSON.parse(localStorage.getItem("chainguard-watchlist") || "[]") as string[];
+    setWatchlistCount(items.length);
+  }, []);
+
+  const isWatchlisted = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const items = JSON.parse(localStorage.getItem("chainguard-watchlist") || "[]") as string[];
+    return items.includes(`${report.chain}:${report.address}`);
+  }, [report.address, report.chain]);
 
   async function copyReport() {
     await navigator.clipboard.writeText(report.markdownReport);
+  }
+
+  async function copyShareLink() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("chain", report.chain);
+    url.searchParams.set("address", report.address);
+    await navigator.clipboard.writeText(url.toString());
   }
 
   function downloadReport() {
@@ -32,9 +51,18 @@ export function RiskReport({ report }: { report: AnalyzeResponse }) {
     URL.revokeObjectURL(url);
   }
 
+  function toggleWatchlist() {
+    const key = `${report.chain}:${report.address}`;
+    const items = JSON.parse(localStorage.getItem("chainguard-watchlist") || "[]") as string[];
+    const next = items.includes(key) ? items.filter((item) => item !== key) : [...items, key];
+    localStorage.setItem("chainguard-watchlist", JSON.stringify(next));
+    setWatchlistCount(next.length);
+  }
+
   const tabs = [
     ["overview", "Overview"],
     ["social", "Social Report"],
+    ["market", "Market Report"],
     ["technical", "Technical Findings"],
     ["checklist", "Manual Checklist"],
   ] as const;
@@ -50,44 +78,114 @@ export function RiskReport({ report }: { report: AnalyzeResponse }) {
         <div className="flex flex-col items-end gap-2">
           <RiskBadge level={report.riskLevel} />
           <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-sm font-bold text-blue-700 dark:text-blue-200">Social: {report.socialReport.label}</span>
+          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-sm font-bold text-violet-700 dark:text-violet-200">Market: {report.marketReport.label}</span>
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm font-bold text-emerald-700 dark:text-emerald-200">Verdict: {report.finalVerdict.label}</span>
         </div>
       </div>
+
       <p className="mt-5 max-w-3xl text-slate-700 dark:text-slate-300">{report.executiveSummary}</p>
       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs break-all text-slate-600 dark:border-white/10 dark:bg-black/30 dark:text-slate-400">{report.address}</div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20"><div className="text-2xl font-black text-slate-950 dark:text-white">{report.findings.length}</div><div className="text-sm text-slate-500">Findings</div></div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20"><div className="text-2xl font-black text-slate-950 dark:text-white">{report.signals.length}</div><div className="text-sm text-slate-500">Signals</div></div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20"><div className="text-2xl font-black text-slate-950 dark:text-white">{report.socialReport.score}/100</div><div className="text-sm text-slate-500">Social Score</div></div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20"><div className="text-2xl font-black text-slate-950 dark:text-white">{report.socialReport.label}</div><div className="text-sm text-slate-500">Social Label</div></div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20"><div className="text-2xl font-black text-slate-950 dark:text-white">{report.marketReport.score}/100</div><div className="text-sm text-slate-500">Market Score</div></div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-black/20"><div className="text-2xl font-black text-slate-950 dark:text-white">{watchlistCount}</div><div className="text-sm text-slate-500">Watchlist items</div></div>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-black/20">
         {tabs.map(([id, label]) => <button key={id} onClick={() => setTab(id)} className={`rounded-xl px-4 py-2 text-sm font-bold ${tab === id ? "bg-slate-950 text-white dark:bg-emerald-400 dark:text-slate-950" : "text-slate-600 dark:text-slate-300"}`}>{label}</button>)}
       </div>
 
-      {tab === "overview" && <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {report.riskSections.map((section) => <div key={section.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h3 className="font-black text-slate-950 dark:text-white">{section.title}</h3><ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-400">{section.items.map((item) => <li key={item}>{item}</li>)}</ul></div>)}
-      </div>}
-
-      {tab === "social" && <div className="mt-6 grid gap-4">
-        <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-5"><h3 className="font-black text-slate-950 dark:text-white">Social Media / Deployer Supporter Rating</h3><p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.socialReport.summary}</p></div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5"><h4 className="font-black text-emerald-800 dark:text-emerald-200">Positive signals</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.positives.map((x) => <li key={x}>{x}</li>)}</ul></div>
-          <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-5"><h4 className="font-black text-orange-800 dark:text-orange-200">Warning signals</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.warnings.map((x) => <li key={x}>{x}</li>)}</ul></div>
+      {tab === "overview" && (
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {report.riskSections.map((section) => (
+            <div key={section.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20">
+              <h3 className="font-black text-slate-950 dark:text-white">{section.title}</h3>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-400">
+                {section.items.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          ))}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20 md:col-span-2">
+            <h3 className="font-black text-slate-950 dark:text-white">Final Verdict</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.finalVerdict.summary}</p>
+            <p className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm font-medium text-emerald-800 dark:text-emerald-200">Recommendation: {report.finalVerdict.recommendation}</p>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h4 className="font-black text-slate-950 dark:text-white">Score breakdown</h4><ul className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.scoreBreakdown.map((b) => <li key={`${b.label}-${b.points}`}><span className={b.points >= 0 ? "text-emerald-600" : "text-red-500"}>{b.points >= 0 ? "+" : ""}{b.points}</span> · <b>{b.label}</b> — {b.reason}</li>)}</ul></div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h4 className="font-black text-slate-950 dark:text-white">Official link / metadata comparison</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.metadataComparison.map((x) => <li key={x}>{x}</li>)}</ul></div>
-      </div>}
+      )}
 
-      {tab === "technical" && <div className="mt-6 grid gap-4">{report.findings.map((finding, index) => <div key={`${finding.title}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-black/20"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-black text-slate-950 dark:text-white">{finding.title}</h3><RiskBadge level={finding.severity} /></div><p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">{finding.description}</p>{finding.evidence && <p className="mt-3 rounded-xl bg-slate-100 p-3 font-mono text-xs text-slate-600 dark:bg-white/5 dark:text-slate-400">Evidence: {finding.evidence}</p>}<p className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm font-medium text-emerald-800 dark:text-emerald-200">Recommendation: {finding.recommendation}</p>{finding.specialistPrompt && <p className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-sm text-blue-800 dark:text-blue-200">Specialist prompt: {finding.specialistPrompt}</p>}</div>)}</div>}
+      {tab === "social" && (
+        <div className="mt-6 grid gap-4">
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-5">
+            <h3 className="font-black text-slate-950 dark:text-white">Social Media / Deployer Supporter Rating</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.socialReport.summary}</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5"><h4 className="font-black text-emerald-800 dark:text-emerald-200">Positive signals</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.positives.map((x) => <li key={x}>{x}</li>)}</ul></div>
+            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 p-5"><h4 className="font-black text-orange-800 dark:text-orange-200">Warning signals</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.warnings.map((x) => <li key={x}>{x}</li>)}</ul></div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h4 className="font-black text-slate-950 dark:text-white">Score breakdown</h4><ul className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.scoreBreakdown.map((b) => <li key={`${b.label}-${b.points}`}><span className={b.points >= 0 ? "text-emerald-600" : "text-red-500"}>{b.points >= 0 ? "+" : ""}{b.points}</span> · <b>{b.label}</b> — {b.reason}</li>)}</ul></div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h4 className="font-black text-slate-950 dark:text-white">Official link / metadata comparison</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.socialReport.metadataComparison.map((x) => <li key={x}>{x}</li>)}</ul></div>
+        </div>
+      )}
 
-      {tab === "checklist" && <div className="mt-6 grid gap-4 md:grid-cols-2"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h3 className="font-black text-slate-950 dark:text-white">Technical Manual Checks</h3><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.recommendedChecks.map((check) => <li key={check}>{check}</li>)}</ul></div><div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h3 className="font-black text-slate-950 dark:text-white">Social Manual Checks</h3><ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.socialReport.manualChecks.map((check) => <li key={check}>{check}</li>)}</ul></div></div>}
+      {tab === "market" && (
+        <div className="mt-6 grid gap-4">
+          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5">
+            <h3 className="font-black text-slate-950 dark:text-white">Market / Liquidity Rating</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.marketReport.summary}</p>
+            <p className="mt-3 text-sm font-bold text-violet-800 dark:text-violet-200">Verdict: {report.marketReport.verdict}</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5"><h4 className="font-black text-emerald-800 dark:text-emerald-200">Positive signals</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.marketReport.positives.map((x) => <li key={x}>{x}</li>)}</ul></div>
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5"><h4 className="font-black text-red-800 dark:text-red-200">Warning signals</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.marketReport.warnings.map((x) => <li key={x}>{x}</li>)}</ul></div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h4 className="font-black text-slate-950 dark:text-white">Score breakdown</h4><ul className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-300">{report.marketReport.scoreBreakdown.map((b) => <li key={`${b.label}-${b.points}`}><span className={b.points >= 0 ? "text-emerald-600" : "text-red-500"}>{b.points >= 0 ? "+" : ""}{b.points}</span> · <b>{b.label}</b> — {b.reason}</li>)}</ul></div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20"><h4 className="font-black text-slate-950 dark:text-white">Dex pair links</h4><ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700 dark:text-slate-300">{report.marketReport.dexPairs.length ? report.marketReport.dexPairs.map((x) => <li key={x}>{x}</li>) : <li>None provided</li>}</ul></div>
+        </div>
+      )}
+
+      {tab === "technical" && (
+        <div className="mt-6 grid gap-4">
+          {report.findings.map((finding, index) => (
+            <div key={`${finding.title}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-black/20">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-lg font-black text-slate-950 dark:text-white">{finding.title}</h3>
+                <RiskBadge level={finding.severity} />
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">{finding.description}</p>
+              {finding.evidence && <p className="mt-3 rounded-xl bg-slate-100 p-3 font-mono text-xs text-slate-600 dark:bg-white/5 dark:text-slate-400">Evidence: {finding.evidence}</p>}
+              <p className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm font-medium text-emerald-800 dark:text-emerald-200">Recommendation: {finding.recommendation}</p>
+              {finding.specialistPrompt && <p className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-sm text-blue-800 dark:text-blue-200">Specialist prompt: {finding.specialistPrompt}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab === "checklist" && (
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20">
+            <h3 className="font-black text-slate-950 dark:text-white">Technical Manual Checks</h3>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.recommendedChecks.map((check) => <li key={check}>{check}</li>)}</ul>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20">
+            <h3 className="font-black text-slate-950 dark:text-white">Social Manual Checks</h3>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.socialReport.manualChecks.map((check) => <li key={check}>{check}</li>)}</ul>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20 md:col-span-2">
+            <h3 className="font-black text-slate-950 dark:text-white">Market Manual Checks</h3>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700 dark:text-slate-300">{report.marketReport.manualChecks.map((check) => <li key={check}>{check}</li>)}</ul>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-3">
         <button onClick={copyReport} className="rounded-2xl border border-emerald-500/40 px-5 py-3 font-bold text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-200">Copy Markdown Report</button>
         <button onClick={downloadReport} className="rounded-2xl bg-slate-950 px-5 py-3 font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950">Download Markdown</button>
         <button onClick={exportHtml} className="rounded-2xl border border-blue-500/40 px-5 py-3 font-bold text-blue-700 hover:bg-blue-500/10 dark:text-blue-200">Export HTML</button>
+        <button onClick={copyShareLink} className="rounded-2xl border border-violet-500/40 px-5 py-3 font-bold text-violet-700 hover:bg-violet-500/10 dark:text-violet-200">Copy Share Link</button>
+        <button onClick={toggleWatchlist} className="rounded-2xl border border-orange-500/40 px-5 py-3 font-bold text-orange-700 hover:bg-orange-500/10 dark:text-orange-200">{isWatchlisted ? "Remove from Watchlist" : "Add to Watchlist"}</button>
       </div>
     </section>
   );

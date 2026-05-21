@@ -5,6 +5,7 @@ import { buildMarkdownReport } from "../report";
 import { solanaBaselineFindings } from "./solana-rules";
 import { getChainName } from "../chains";
 import { analyzeSocialPresence } from "../social";
+import { analyzeMarketSignals } from "../market";
 
 function isSolanaAddress(address: string) {
   try {
@@ -71,7 +72,15 @@ export async function analyzeSolana(input: AnalyzeRequest): Promise<AnalyzeRespo
   ];
   const executiveSummary = `${getChainName(input.chain)} scan completed in ${input.scanMode ?? "standard"} mode. ChainGuard AI generated ${findings.length} investigation finding(s) focused on token authorities, liquidity, metadata, holder concentration, and launch mechanics.`;
   const socialReport = analyzeSocialPresence(input.socialLinks, input.notes);
-  const summary = `${getChainName(input.chain)} analysis completed in MVP checklist mode with ${findings.length} finding(s). The current risk score is ${score}/100 (${riskLevel}). Social media trust rating: ${socialReport.score}/100 (${socialReport.label}).`;
+  const marketReport = analyzeMarketSignals(input.address, input.notes, input.socialLinks);
+  const finalVerdict = (() => {
+    const combined = Math.round((100 - score + socialReport.score + marketReport.score) / 3);
+    if (score >= 85 || socialReport.label === "Scam" || marketReport.label === "Critical") return { label: "Scam" as const, summary: "Critical technical, social, or market risk detected.", recommendation: "Do not interact until verified by a professional audit and live on-chain checks." };
+    if (score >= 65 || socialReport.label === "Risk" || marketReport.label === "Weak") return { label: "Risk" as const, summary: "Multiple risk signals require manual verification.", recommendation: "Treat as high-risk and verify authority, liquidity, deployer reputation, and official links before any action." };
+    if (combined >= 70) return { label: "Safe" as const, summary: "No critical signals from submitted data, with acceptable social/market context.", recommendation: "Safe for research only; still verify live on-chain data before interacting with funds." };
+    return { label: "Watchlist" as const, summary: "Mixed or incomplete signals detected.", recommendation: "Add to watchlist and collect more verified source, liquidity, holder, and social evidence." };
+  })();
+  const summary = `${getChainName(input.chain)} analysis completed in MVP checklist mode with ${findings.length} finding(s). The current risk score is ${score}/100 (${riskLevel}). Social media trust rating: ${socialReport.score}/100 (${socialReport.label}). Market rating: ${marketReport.score}/100 (${marketReport.label}). Final verdict: ${finalVerdict.label}.`;
   const response: AnalyzeResponse = {
     chain: input.chain,
     chainName: getChainName(input.chain),
@@ -86,6 +95,8 @@ export async function analyzeSolana(input: AnalyzeRequest): Promise<AnalyzeRespo
     recommendedChecks,
     riskSections,
     socialReport,
+    marketReport,
+    finalVerdict,
     signals,
     markdownReport: "",
   };

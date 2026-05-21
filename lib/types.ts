@@ -2,6 +2,7 @@ export type Chain = "ethereum" | "bsc" | "polygon" | "base" | "optimism" | "arbi
 export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 export type ScanMode = "standard" | "meme" | "audit";
 export type SocialLabel = "Safe" | "Authorized" | "Watchlist" | "Risk" | "Scam" | "Unknown";
+export type MarketLabel = "Strong" | "Neutral" | "Weak" | "Critical";
 
 export interface AnalyzeRequest {
   chain: Chain;
@@ -46,6 +47,25 @@ export interface SocialReport {
   scoreBreakdown: ScoreBreakdown[];
 }
 
+export interface MarketReport {
+  score: number;
+  label: MarketLabel;
+  summary: string;
+  signals: string[];
+  positives: string[];
+  warnings: string[];
+  verdict: string;
+  scoreBreakdown: ScoreBreakdown[];
+  dexPairs: string[];
+  manualChecks: string[];
+}
+
+export interface FinalVerdict {
+  label: "Safe" | "Watchlist" | "Risk" | "Scam";
+  summary: string;
+  recommendation: string;
+}
+
 export interface AnalyzeResponse {
   chain: Chain;
   chainName: string;
@@ -60,6 +80,8 @@ export interface AnalyzeResponse {
   recommendedChecks: string[];
   riskSections: RiskSection[];
   socialReport: SocialReport;
+  marketReport: MarketReport;
+  finalVerdict: FinalVerdict;
   markdownReport: string;
   signals: string[];
 }

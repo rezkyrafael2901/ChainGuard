@@ -111,17 +111,41 @@ Users can click a template and immediately use it as an investigation prompt.
 Reports include:
 
 - executive summary
+- final verdict: Safe / Watchlist / Risk / Scam
 - technical summary
 - risk score and risk level
 - social trust score and label
+- market/liquidity score and label
 - risk domains reviewed
 - technical findings
 - evidence and recommendations
 - specialist prompts per finding
 - manual technical checklist
 - manual social checklist
+- manual market checklist
 - Markdown export
 - HTML export
+- shareable report link helper
+- local browser watchlist/history
+
+### Market / liquidity intelligence
+
+ChainGuard AI includes a market-risk layer for meme tokens and new launches. It detects market context from submitted notes/social links and Dex-style pair URLs, then scores:
+
+- DexScreener / DEXTools / GeckoTerminal / Birdeye links
+- liquidity context
+- volume spike language
+- new-pair / fresh-launch risk
+- low-liquidity warnings
+- rug / honeypot / liquidity-pull wording
+- whale, sniper, bundle, and holder-concentration risk
+
+The market report gives a market verdict such as:
+
+- SAFE / VERIFIED MARKET CONTEXT
+- WATCHLIST / NEEDS LIVE VERIFICATION
+- RISK / LIMITED CONFIDENCE
+- SCAM / HIGH MARKET RISK
 
 ## Agent Workflow
 
