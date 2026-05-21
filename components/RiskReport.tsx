@@ -24,11 +24,11 @@ export function RiskReport({ report }: { report: AnalyzeResponse }) {
         <div>
           <div className="text-xs font-black uppercase tracking-[0.35em] text-emerald-600 dark:text-emerald-300">Risk Report</div>
           <h2 className="mt-3 text-5xl font-black text-slate-950 dark:text-white">{report.riskScore}<span className="text-2xl text-slate-500">/100</span></h2>
-          <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{report.chain} · {report.addressType}</p>
+          <p className="mt-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{report.chainName} · {report.addressType} · {report.scanMode} mode</p>
         </div>
         <RiskBadge level={report.riskLevel} />
       </div>
-      <p className="mt-5 max-w-3xl text-slate-700 dark:text-slate-300">{report.summary}</p>
+      <p className="mt-5 max-w-3xl text-slate-700 dark:text-slate-300">{report.executiveSummary}</p>
       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 font-mono text-xs break-all text-slate-600 dark:border-white/10 dark:bg-black/30 dark:text-slate-400">{report.address}</div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -46,6 +46,17 @@ export function RiskReport({ report }: { report: AnalyzeResponse }) {
         </div>
       </div>
 
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {report.riskSections.map((section) => (
+          <div key={section.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-black/20">
+            <h3 className="font-black text-slate-950 dark:text-white">{section.title}</h3>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600 dark:text-slate-400">
+              {section.items.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+
       <div className="mt-6 grid gap-4">
         {report.findings.map((finding, index) => (
           <div key={`${finding.title}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-black/20">
@@ -54,7 +65,9 @@ export function RiskReport({ report }: { report: AnalyzeResponse }) {
               <RiskBadge level={finding.severity} />
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-700 dark:text-slate-300">{finding.description}</p>
+            {finding.evidence && <p className="mt-3 rounded-xl bg-slate-100 p-3 font-mono text-xs text-slate-600 dark:bg-white/5 dark:text-slate-400">Evidence: {finding.evidence}</p>}
             <p className="mt-3 rounded-xl bg-emerald-500/10 p-3 text-sm font-medium text-emerald-800 dark:text-emerald-200">Recommendation: {finding.recommendation}</p>
+            {finding.specialistPrompt && <p className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3 text-sm text-blue-800 dark:text-blue-200">Specialist prompt: {finding.specialistPrompt}</p>}
           </div>
         ))}
       </div>

@@ -4,18 +4,19 @@ import { useState } from "react";
 import { AnalyzeForm } from "@/components/AnalyzeForm";
 import { RiskReport } from "@/components/RiskReport";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { PromptLibrary } from "@/components/PromptLibrary";
 import type { AnalyzeResponse } from "@/lib/types";
 
 const stats = [
-  ["2", "chains covered"],
+  ["8", "chains covered"],
   ["5", "agent workflow stages"],
   ["10+", "risk signals"],
 ];
 
 const features = [
-  "Ethereum Solidity pattern scanning for owner, mint, blacklist, proxy, tax, and low-level call risks.",
-  "Solana token investigation checklist for mint authority, freeze authority, liquidity, metadata, and holders.",
-  "Structured risk score, severity labels, recommendations, and copy/download Markdown reports.",
+  "Ethereum, BSC, Polygon, Base, Optimism, Arbitrum, Solana, and Pump.fun-style token risk modes.",
+  "Detailed smart-contract reports with evidence, exploit-oriented checks, specialist prompts, and manual verification steps.",
+  "Dedicated meme-token checker for tax logic, honeypot patterns, launchpad risk, creator wallets, liquidity, and holder concentration.",
 ];
 
 const workflow = [
@@ -28,6 +29,7 @@ const workflow = [
 
 export default function Home() {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [presetPrompt, setPresetPrompt] = useState("");
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-6 md:px-8">
@@ -50,7 +52,7 @@ export default function Home() {
         <div>
           <div className="mb-6 inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-700 dark:text-emerald-200">Multi-agent blockchain risk analyzer</div>
           <h1 className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight text-slate-950 dark:text-white md:text-7xl">
-            Professional risk intelligence for Ethereum & Solana.
+            Professional risk intelligence for EVM, L2, Solana & meme tokens.
           </h1>
           <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-700 dark:text-slate-300">
             ChainGuard AI scores smart contract, token, and wallet risk signals using an agent-style workflow: chain routing, pattern scanning, authority checks, risk reasoning, and report generation.
@@ -72,10 +74,17 @@ export default function Home() {
             ))}
           </div>
         </div>
-        <AnalyzeForm onResult={setResult} />
+        <AnalyzeForm onResult={setResult} presetNotes={presetPrompt} />
       </section>
 
       {result && <RiskReport report={result} />}
+
+      <div className="py-8">
+        <PromptLibrary onUse={(prompt) => {
+          setPresetPrompt(prompt);
+          document.getElementById("top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }} />
+      </div>
 
       <section id="workflow" className="py-16">
         <div className="flex flex-wrap items-end justify-between gap-5">
