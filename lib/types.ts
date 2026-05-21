@@ -27,6 +27,12 @@ export interface RiskSection {
   items: string[];
 }
 
+export interface ScoreBreakdown {
+  label: string;
+  points: number;
+  reason: string;
+}
+
 export interface SocialReport {
   score: number;
   label: SocialLabel;
@@ -35,6 +41,9 @@ export interface SocialReport {
   warnings: string[];
   checkedSignals: string[];
   manualChecks: string[];
+  officialLinks: string[];
+  metadataComparison: string[];
+  scoreBreakdown: ScoreBreakdown[];
 }
 
 export interface AnalyzeResponse {

@@ -1,4 +1,4 @@
-import type { SocialLabel, SocialReport } from "./types";
+import type { ScoreBreakdown, SocialLabel, SocialReport } from "./types";
 
 function labelFromScore(score: number): SocialLabel {
   if (score >= 85) return "Authorized";
@@ -12,6 +12,14 @@ function extractLinks(text: string) {
   return text.match(/https?:\/\/[^\s,]+|@[a-zA-Z0-9_]{3,}/g) ?? [];
 }
 
+function host(url: string) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
+
+function addBreakdown(list: ScoreBreakdown[], label: string, points: number, reason: string) {
+  list.push({ label, points, reason });
+}
+
 export function analyzeSocialPresence(socialLinks = "", notes = ""): SocialReport {
   const raw = `${socialLinks}\n${notes}`;
   const lower = raw.toLowerCase();
@@ -20,11 +28,15 @@ export function analyzeSocialPresence(socialLinks = "", notes = ""): SocialRepor
   const positives: string[] = [];
   const warnings: string[] = [];
   const checkedSignals: string[] = [];
+  const metadataComparison: string[] = [];
+  const scoreBreakdown: ScoreBreakdown[] = [{ label: "Base social score", points: 50, reason: "Neutral starting score before trust and warning signals." }];
 
+  const urls = links.filter((link) => link.startsWith("http"));
+  const officialLinks = urls.filter((url) => !/x\.com|twitter\.com|t\.me|discord\.gg|discord\.com|github\.com|medium\.com|mirror\.xyz|linktr\.ee|beacons\.ai/i.test(url));
   const hasTwitter = /x\.com|twitter\.com|@[a-z0-9_]{3,}/i.test(raw);
   const hasTelegram = /t\.me|telegram/i.test(raw);
   const hasDiscord = /discord\.gg|discord\.com/i.test(raw);
-  const hasWebsite = /https?:\/\/(?!x\.com|twitter\.com|t\.me|discord\.gg|discord\.com|github\.com)[^\s]+/i.test(raw);
+  const hasWebsite = officialLinks.length > 0;
   const hasGithub = /github\.com/i.test(raw);
   const hasDocs = /docs|gitbook|whitepaper|medium\.com|mirror\.xyz/i.test(raw);
   const hasAudit = /audit|certik|solidproof|coinsult|assure|halborn|trail of bits|openzeppelin/i.test(lower);
@@ -32,41 +44,54 @@ export function analyzeSocialPresence(socialLinks = "", notes = ""): SocialRepor
   const hasOfficial = /official|verified|blue check|authorized|partner|foundation/i.test(lower);
   const hasRiskWords = /fake|impersonat|scam|rug|honeypot|blacklist|cannot sell|stolen|phishing|airdrop claim|urgent|guaranteed|100x|private sale|presale/i.test(lower);
   const hasNoSocial = links.length === 0 && !raw.trim();
+  const hasShortlink = /bit\.ly|tinyurl|shorturl|linktr\.ee|beacons\.ai/i.test(raw);
 
   checkedSignals.push(`Links/handles detected: ${links.length}`);
+  checkedSignals.push(`Official website candidates: ${officialLinks.length ? officialLinks.map(host).join(", ") : "none"}`);
   checkedSignals.push(`Twitter/X: ${hasTwitter ? "present" : "missing"}`);
   checkedSignals.push(`Telegram: ${hasTelegram ? "present" : "missing"}`);
   checkedSignals.push(`Discord: ${hasDiscord ? "present" : "missing"}`);
-  checkedSignals.push(`Website/docs/GitHub/audit mentions checked from submitted text`);
+  checkedSignals.push(`GitHub: ${hasGithub ? "present" : "missing"}`);
+  checkedSignals.push(`Audit/KYC mentions: ${hasAudit || hasKyc ? "present" : "missing"}`);
 
   if (hasNoSocial) {
-    score -= 25;
+    score -= 25; addBreakdown(scoreBreakdown, "No social links", -25, "No social media or official community links were provided.");
     warnings.push("No social media or official community links were provided. This makes deployer/supporter verification weak.");
   }
-  if (hasTwitter) { score += 8; positives.push("Twitter/X presence provided for public communication checks."); }
-  if (hasTelegram || hasDiscord) { score += 8; positives.push("Community channel provided for activity and moderation review."); }
-  if (hasWebsite) { score += 8; positives.push("Project website provided for branding, docs, and official-link verification."); }
-  if (hasGithub) { score += 10; positives.push("GitHub link provided; code transparency can improve trust if repository activity is real."); }
-  if (hasDocs) { score += 8; positives.push("Documentation/whitepaper-style reference detected."); }
-  if (hasAudit) { score += 12; positives.push("Audit/security review reference detected. Verify the report URL and scope manually."); }
-  if (hasKyc) { score += 8; positives.push("KYC/doxxed/verified-team claim detected. Verify with the named provider."); }
-  if (hasOfficial) { score += 6; positives.push("Official/authorized wording detected. Cross-check links from the official website and explorer metadata."); }
+  if (hasTwitter) { score += 8; addBreakdown(scoreBreakdown, "Twitter/X present", 8, "Public communication channel was provided."); positives.push("Twitter/X presence provided for public communication checks."); }
+  if (hasTelegram || hasDiscord) { score += 8; addBreakdown(scoreBreakdown, "Community channel present", 8, "Telegram or Discord was provided for moderation/activity review."); positives.push("Community channel provided for activity and moderation review."); }
+  if (hasWebsite) { score += 8; addBreakdown(scoreBreakdown, "Website candidate present", 8, "Official website candidate was provided."); positives.push("Project website provided for branding, docs, and official-link verification."); }
+  if (hasGithub) { score += 10; addBreakdown(scoreBreakdown, "GitHub present", 10, "Code transparency can improve trust if repository activity is real."); positives.push("GitHub link provided; code transparency can improve trust if repository activity is real."); }
+  if (hasDocs) { score += 8; addBreakdown(scoreBreakdown, "Docs/whitepaper present", 8, "Documentation reference detected."); positives.push("Documentation/whitepaper-style reference detected."); }
+  if (hasAudit) { score += 12; addBreakdown(scoreBreakdown, "Audit mention", 12, "Audit/security review reference detected; verify scope and address manually."); positives.push("Audit/security review reference detected. Verify the report URL and scope manually."); }
+  if (hasKyc) { score += 8; addBreakdown(scoreBreakdown, "KYC/team verification mention", 8, "KYC/doxxed/verified-team claim detected."); positives.push("KYC/doxxed/verified-team claim detected. Verify with the named provider."); }
+  if (hasOfficial) { score += 6; addBreakdown(scoreBreakdown, "Official/authorized wording", 6, "Official or authorized claim detected; cross-check manually."); positives.push("Official/authorized wording detected. Cross-check links from the official website and explorer metadata."); }
   if (hasRiskWords) {
-    score -= 30;
+    score -= 30; addBreakdown(scoreBreakdown, "High-risk wording", -30, "Risk terms such as scam/rug/phishing/guaranteed/presale were detected.");
     warnings.push("High-risk language detected: fake/scam/rug/honeypot/phishing/guaranteed returns/presale-style wording may indicate impersonation or fraud risk.");
   }
   if (links.length === 1) {
-    score -= 8;
+    score -= 8; addBreakdown(scoreBreakdown, "Single-link profile", -8, "Only one social link/handle was provided.");
     warnings.push("Only one social link/handle was provided. Legitimate projects usually have multiple cross-linked channels.");
   }
   if (!hasWebsite && (hasTelegram || hasTwitter || hasDiscord)) {
-    score -= 8;
+    score -= 8; addBreakdown(scoreBreakdown, "No official website", -8, "Social channels exist but no official website was provided.");
     warnings.push("Social channel exists but no official website was provided for cross-verification.");
   }
-  if (/bit\.ly|tinyurl|shorturl|linktr\.ee|beacons\.ai/i.test(raw)) {
-    score -= 12;
+  if (hasShortlink) {
+    score -= 12; addBreakdown(scoreBreakdown, "Shortlink/aggregator", -12, "Shortlinks or link aggregators can hide phishing destinations.");
     warnings.push("Shortlink/link aggregator detected. Verify final destination carefully to avoid phishing or fake token pages.");
   }
+
+  if (officialLinks.length > 1) {
+    metadataComparison.push("Multiple official website candidates were submitted. Verify which one is canonical and ensure token metadata/explorer links match it.");
+  } else if (officialLinks.length === 1) {
+    metadataComparison.push(`Canonical website candidate: ${officialLinks[0]}. Compare this against explorer token metadata, docs, X bio, and pinned Telegram/Discord links.`);
+  } else {
+    metadataComparison.push("No canonical website candidate found. Treat social identity as unverified until an official website or explorer metadata link is confirmed.");
+  }
+  metadataComparison.push("Check whether the contract address is announced consistently across website, X/Twitter, Telegram/Discord pins, docs, and explorer metadata.");
+  metadataComparison.push("If any channel links to a different contract address, label the social profile as Risk/Scam until resolved.");
 
   score = Math.max(0, Math.min(100, Math.round(score)));
   const label = labelFromScore(score);
@@ -87,6 +112,9 @@ export function analyzeSocialPresence(socialLinks = "", notes = ""): SocialRepor
     positives: positives.length ? positives : ["No strong positive social trust signals were detected from submitted text."],
     warnings: warnings.length ? warnings : ["No major social red flags detected from submitted text. Manual verification is still required."],
     checkedSignals,
+    officialLinks,
+    metadataComparison,
+    scoreBreakdown,
     manualChecks: [
       "Verify all social links from the official website and block explorer token metadata, not from random posts.",
       "Check whether deployer/supporter accounts are old, active, and consistently linked to the same project.",
